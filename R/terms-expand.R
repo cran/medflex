@@ -20,7 +20,7 @@
 #'
 #' If the imputation-based approach (\code{\link{neImpute}}) is applied, the nested counterfactual outcomes are imputed by predictions from the imputation model.
 #'
-#' In the former case, this object inherits from classes \code{c("data.frame", "expData", "impData"))}, whereas in the latter case it inherits from classes \code{c("data.frame", "expData", "weightData"))}.
+#' In the former case, this object inherits from classes \code{c("data.frame", "expData", "impData")}, whereas in the latter case it inherits from classes \code{c("data.frame", "expData", "weightData")}.
 #' @seealso \code{\link{neImpute}}, \code{\link{neWeight}}
 #' @name expData
 NULL
@@ -76,11 +76,9 @@ expandX.factor <- function (x, data, ...)
     args <- as.list(match.call())[-1L]
     aux0 <- rep(x, each = nlevels(x))
     tmp1 <- as.numeric(x)
-    aux1 <- as.vector(mapply(function(y) (y + seq.int(nlevels(x)) - 
-        2)%%nlevels(x) + 1, tmp1))
-    res <- cbind(aux0, aux1)
-    res <- as.data.frame(apply(res, 2, function(y) factor(y, 
-        labels = levels(x))))
+    aux1 <- factor(as.vector(mapply(function(y) (y + seq.int(nlevels(x)) - 
+        2) %% nlevels(x) + 1, tmp1)), labels = levels(x))
+    res <- data.frame(aux0, aux1)
     attr(res, "x") <- x
     return(res)
 }
@@ -128,7 +126,7 @@ neTerms.Mformula <- function (x, Y, ...)
     attr(terms, "vartype") <- list(Y = Y, X = predvars[1], M = c(if (nMed > 
         1) predvars[2:nMed], all.vars(terms[[2]])), C = predvars[-(1:nMed)])
     attr(attr(terms, "vartype"), "xasis") <- dimnames(attr(terms, 
-        "factors")[rowSums(attr(terms, "factors")) > 0, ])[[1]][1]
+        "factors"))[[1]][rowSums(attr(terms, "factors")) > 0][1]
     class(terms) <- c("neTerms.object", class(terms))
     return(terms)
 }
@@ -151,7 +149,7 @@ neTerms.Yformula <- function (x, nMed, ...)
         X = predvars[1], M = predvars[2:(nMed + 1)], C = predvars[-(1:(nMed + 
             1))])
     attr(attr(terms, "vartype"), "xasis") <- dimnames(attr(terms, 
-        "factors")[rowSums(attr(terms, "factors")) > 0, ])[[1]][1]
+        "factors"))[[1]][rowSums(attr(terms, "factors")) > 0][1]
     class(terms) <- c("neTerms.object", class(terms))
     return(terms)
 }

@@ -3,7 +3,7 @@
 #' @description This function both expands the data along hypothetical exposure values and calculates ratio-of-mediator probability weights.
 #' @param object an object used to select a method.
 #' @param ... additional arguments.
-#' @return A data frame of class \code{c("data.frame", "expData", "weightData"))}. See \code{\link{expData}} for its structure.
+#' @return A data frame of class \code{c("data.frame", "expData", "weightData")}. See \code{\link{expData}} for its structure.
 #' @details Generic function that both expands the data along hypothetical exposure values and
 #' calculates ratio-of-mediator probability weights 
 #' 
@@ -27,7 +27,7 @@ neWeight <- function (object, ...)
 #' @param object fitted model object representing the mediator model.
 #' @param formula a \code{\link[stats]{formula}} object providing a symbolic description of the mediator model. Redundant if already specified in call for fitted model specified in \code{object} (see details).
 #' @inheritParams neImpute.default
-#' @return A data frame of class \code{c("data.frame", "expData", "weightData"))}. See \code{\link{expData}} for its structure.
+#' @return A data frame of class \code{c("data.frame", "expData", "weightData")}. See \code{\link{expData}} for its structure.
 #' @details The calculated weights are ratios of fitted probabilities or probability densities from the distribution of the mediator model.
 #' This model needs to be specified as a fitted object in the \code{object} argument.
 #'
@@ -41,6 +41,19 @@ neWeight <- function (object, ...)
 #'  \item exposure \code{X}: The first predictor is coded as exposure or treatment.
 #'  \item baseline covariates \code{C}: All remaining predictor variables are automatically coded as baseline covariates.
 #' }
+#'
+#' It is important to adhere to this prespecified order to enable \code{neWeight} to create valid pointers to these different types of predictor variables.
+#' This requirement extends to the use of operators different than the \code{+} operator, such as the \code{:} and \code{*} operators (when e.g. adding interaction terms). 
+#' For instance, the formula specifications \code{M ~ X * C1 + C2}, \code{M ~ X + C1 + X:C1 + C2} and \code{Y ~ X + X:C1 + C1 + C2} will create identical pointers to the different types of variables,
+#' as the order of the unique predictor variables is identical in all three specifications. 
+#' 
+#' Furthermore, categorical exposures that are not coded as factors in the original dataset, should be specified as factors in the formula, 
+#' using the \code{\link[base]{factor}} function, e.g. \code{M ~ factor(X) + C1 + C2}. 
+#' Quadratic, cubic or other polynomial terms can be included as well, by making use of the \code{\link[base]{I}} function or by using the \code{\link[stats]{poly}} function.
+#' For instance, \code{M ~ X + I(X^2) + C1 + C2} and \code{M ~ poly(X, 2, raw = TRUE) + C1 + C2} are equivalent and result in identical pointers to the different types of variables.
+# We do not recommend the use of orthogonal polynomials (i.e. using the default argument specification \code{raw = FALSE} in \code{poly}).
+#' 
+#' The command \code{terms(object, "vartype")} (with \code{object} replaced by the name of the resulting expanded dataset) can be used to check whether valid pointers have been created.
 #'
 #' In contrast to imputation models with categorical exposures, additional arguments need to be specified if the exposure is continuous.
 #' All of these additional arguments are related to the sampling procedure for the exposure.
@@ -63,77 +76,77 @@ neWeight <- function (object, ...)
 #' data(UPBdata)
 #' 
 #' ## example using glm
-#' fit.glm <- glm(negaffect ~ att + gender + educ + age, data = UPBdata)
+#' fit.glm <- glm(negaff ~ att + gender + educ + age, data = UPBdata)
 #' weightData <- neWeight(fit.glm, nRep = 2)
-#' weights <- attr(weightData, "weights")
-#' head(cbind(weightData, weights))
 #' 
 #' ## example using vglm (yielding identical results as with glm)
 #' library(VGAM)
-#' fit.vglm <- vglm(negaffect ~ att + gender + educ + age, 
+#' fit.vglm <- vglm(negaff ~ att + gender + educ + age, 
 #'                  family = gaussianff, data = UPBdata)
 #' weightData2 <- neWeight(fit.vglm, nRep = 2)
-#' weights2 <- attr(weightData2, "weights")
-#' head(cbind(weightData2, weights2))
 #'
-#' \dontshow{fit1 <- glm(negaffect ~ att + gender + educ + age, data = UPBdata)
+#' \dontshow{
+#' library(VGAM) 
+#' expData <- neWeight(negaff ~ factor(attbin) + gender + educ + age, family = gaussianff, data = UPBdata, FUN = vglm)
+#' neMod <- neModel(UPB ~ attbin0 + attbin1 + gender + educ + age, family = binomial, expData = expData, nBoot = 2)
+#'  
+#' fit1 <- glm(negaff ~ att + gender + educ + age, data = UPBdata)
 #' expData1 <- neWeight(fit1)
 #' w1 <- attr(expData1, "weights")
-#' expData1f <- neWeight(negaffect ~ att + gender + educ + age, data = UPBdata)
+#' expData1f <- neWeight(negaff ~ att + gender + educ + age, data = UPBdata)
 #' w1f <- attr(expData1f, "weights")
 #' head(expData1); head(expData1f)
 #' head(w1); head(w1f)
 #'
 #' # test vglm (vglm is also vgam class, but not other way around!)
-#' library(VGAM)
-#' fit1b <- vgam(negaffect ~ att + gender + educ + age, family = gaussianff, data = UPBdata)
+#' fit1b <- vgam(negaff ~ att + gender + educ + age, family = gaussianff, data = UPBdata)
 #' expData1b <- neWeight(fit1b)
 #' head(attr(expData1, "weights")); head(attr(expData1b, "weights"))
-#' fit1b <- vgam(negaffect ~ s(att) + gender + educ + age, family = gaussianff, data = UPBdata)
+#' fit1b <- vgam(negaff ~ s(att) + gender + educ + age, family = gaussianff, data = UPBdata)
 #' expData1b <- neWeight(fit1b)
 #' head(attr(expData1, "weights")); head(attr(expData1b, "weights"))
-#' expData1bf <- neWeight(negaffect ~ s(att) + gender + educ + age, FUN = vgam, family = gaussianff, data = UPBdata)
+#' expData1bf <- neWeight(negaff ~ s(att) + gender + educ + age, FUN = vgam, family = gaussianff, data = UPBdata)
 #' head(attr(expData1b, "weights")); head(attr(expData1bf, "weights"))
 #' ##
 #'
-#' UPBdata$negaffect2 <- cut(UPBdata$negaffect, breaks = 2, labels = c("low", "high"))
-#' fit2 <- glm(negaffect2 ~ att + gender + educ + age, family = binomial, data = UPBdata)
+#' UPBdata$negaff2 <- cut(UPBdata$negaff, breaks = 2, labels = c("low", "high"))
+#' fit2 <- glm(negaff2 ~ att + gender + educ + age, family = binomial, data = UPBdata)
 #' expData2 <- neWeight(fit2)
 #' w2 <- attr(expData2, "weights")
-#' expData2f <- neWeight(negaffect2 ~ att + gender + educ + age, family = binomial, data = UPBdata)
+#' expData2f <- neWeight(negaff2 ~ att + gender + educ + age, family = binomial, data = UPBdata)
 #' w2f <- attr(expData2f, "weights")
 #' head(expData2); head(expData2f)
 #' head(w2); head(w2f)
 #'
 #' # test vglm
-#' fit2b <- vgam(negaffect2 ~ att + gender + educ + age, family = binomialff, data = UPBdata)
+#' fit2b <- vgam(negaff2 ~ att + gender + educ + age, family = binomialff, data = UPBdata)
 #' expData2b <- neWeight(fit2b)
 #' head(attr(expData2, "weights")); head(attr(expData2b, "weights"))
-#' fit2b <- vgam(negaffect2 ~ s(att) + gender + educ + age, family = binomialff, data = UPBdata)
+#' fit2b <- vgam(negaff2 ~ s(att) + gender + educ + age, family = binomialff, data = UPBdata)
 #' expData2b <- neWeight(fit2b)
 #' head(attr(expData2, "weights")); head(attr(expData2b, "weights"))
-#' expData2bf <- neWeight(negaffect2 ~ s(att) + gender + educ + age, FUN = vgam, family = binomialff, data = UPBdata)
+#' expData2bf <- neWeight(negaff2 ~ s(att) + gender + educ + age, FUN = vgam, family = binomialff, data = UPBdata)
 #' head(attr(expData2b, "weights")); head(attr(expData2bf, "weights"))
 #' ##
 #'
-#' UPBdata$negaffect3 <- cut(UPBdata$negaffect, breaks = 3, labels = c("low", "moderate", "high"))
-#' UPBdata$negaffect3 <- as.numeric(UPBdata$negaffect3)
-#' fit3 <- glm(negaffect3 ~ att + gender + educ + age, family = "poisson", data = UPBdata)
+#' UPBdata$negaff3 <- cut(UPBdata$negaff, breaks = 3, labels = c("low", "moderate", "high"))
+#' UPBdata$negaff3 <- as.numeric(UPBdata$negaff3)
+#' fit3 <- glm(negaff3 ~ att + gender + educ + age, family = "poisson", data = UPBdata)
 #' expData3 <- neWeight(fit3)
 #' w3 <- attr(expData3, "weights")
-#' expData3f <- neWeight(negaffect3 ~ att + gender + educ + age, family = poisson, data = UPBdata)
+#' expData3f <- neWeight(negaff3 ~ att + gender + educ + age, family = poisson, data = UPBdata)
 #' w3f <- attr(expData3f, "weights")
 #' head(expData3); head(expData3f)
 #' head(w3); head(w3f)
 #'
 #' # test vglm
-#' fit3b <- vgam(negaffect3 ~ att + gender + educ + age, family = poissonff, data = UPBdata)
+#' fit3b <- vgam(negaff3 ~ att + gender + educ + age, family = poissonff, data = UPBdata)
 #' expData3b <- neWeight(fit3b)
 #' head(attr(expData3, "weights")); head(attr(expData3b, "weights"))
-#' fit3b <- vgam(negaffect3 ~ s(att) + gender + educ + age, family = poissonff, data = UPBdata)
+#' fit3b <- vgam(negaff3 ~ s(att) + gender + educ + age, family = poissonff, data = UPBdata)
 #' expData3b <- neWeight(fit3b)
 #' head(attr(expData3, "weights")); head(attr(expData3b, "weights"))
-#' expData3bf <- neWeight(negaffect3 ~ s(att) + gender + educ + age, FUN = vgam, family = poissonff, data = UPBdata)
+#' expData3bf <- neWeight(negaff3 ~ s(att) + gender + educ + age, FUN = vgam, family = poissonff, data = UPBdata)
 #' head(attr(expData3b, "weights")); head(attr(expData3bf, "weights"))}
 #' @export
 neWeight.default <- function (object, formula, data, nRep = 5, xSampling = c("quantiles", 
@@ -142,11 +155,11 @@ neWeight.default <- function (object, formula, data, nRep = 5, xSampling = c("qu
     args <- as.list(match.call())[-1L]
     nMed <- args$nMed <- 1
     fit <- object
+    args$data <- if (missing(data)) {
+        extrCall(fit)$data
+    }
+    else substitute(data)
     if (!isTRUE(args$skipExpand)) {
-        args$data <- if (missing(data)) {
-            extrCall(fit)$data
-        }
-        else substitute(data)
         if (missing(formula)) 
             formula <- extrCall(fit)$formula
         class(formula) <- c("Mformula", "formula")
@@ -193,23 +206,30 @@ neWeight.default <- function (object, formula, data, nRep = 5, xSampling = c("qu
         attr <- attributes(expData)
         vartype <- attr(attr$terms, "vartype")
     }
-    family <- if (is.null(extrCall(fit)$family)) 
-        formals(eval(extrCall(fit)[[1]]))$family
-    else extrCall(fit)$family
-    family <- c("gaussian", "binomial", "poisson")[mapply(function(x, 
+#     family <- if (is.null(extrCall(fit)$family)) 
+#         formals(eval(extrCall(fit)[[1]]))$family #
+#     else extrCall(fit)$family
+    family <- if(inherits(fit, "vglm")) fit@family@vfamily[1] else fit$family$family
+    family <- c("gaussian", "binomial", "poisson", "multinomial")[mapply(function(x, 
         y) grepl(y, x), as.character(family), c("gaussian", "binomial", 
-        "poisson"))]
+        "poisson", "multinomial"))]
     dispersion <- if (inherits(fit, "vglm")) 
         fit@misc$dispersion
     else summary(fit)$dispersion
-    dfun <- function(x) switch(family, gaussian = dnorm(x, mean = predict(fit, 
-        newdata = expData, type = "response"), sd = sqrt(dispersion)), 
-        binomial = dbinom(as.numeric(x) - 1, size = 1, prob = predict(fit, 
-            newdata = expData, type = "response")), poisson = dpois(x, 
-            lambda = predict(fit, newdata = expData, type = "response")))
+    dfun <- switch(family, 
+         gaussian = function(x) dnorm(x, mean = predict(fit, newdata = expData, type = "response"), sd = sqrt(dispersion)), 
+         binomial = function(x) {if (is.factor(x)) x <- as.numeric(x) - 1
+                     return(dbinom(x, size = 1, prob = predict(fit, newdata = expData, type = "response")))}, 
+         poisson = function(x) dpois(x, lambda = predict(fit, newdata = expData, type = "response")),
+         multinomial = function(x) {pred <- predict(fit, newdata = expData, type = "response")
+                        return(sapply(1:nrow(expData), function(i) pred[i, as.character(x[i])]))})
     expData[, vartype$X] <- expData[, vartype$Xexp[2]]
+    try(weightsNum <- dfun(expData[, vartype$M]), silent = TRUE)
+    checkExist <- exists("weightsNum")
+    if (!checkExist) expData[, attr(vartype, "xasis")] <- expData[, vartype$Xexp[2]] 
     weightsNum <- dfun(expData[, vartype$M])
     expData[, vartype$X] <- expData[, vartype$Xexp[1]]
+    if (!checkExist) expData[, attr(vartype, "xasis")] <- expData[, vartype$Xexp[1]] 
     weightsDenom <- dfun(expData[, vartype$M])
     expData <- expData[, -ncol(expData)]
     if (!isTRUE(args$skipExpand)) {
@@ -243,6 +263,19 @@ neWeight.default <- function (object, formula, data, nRep = 5, xSampling = c("qu
 #'  \item baseline covariates \code{C}: All remaining predictor variables are automatically coded as baseline covariates.
 #' }
 #'
+#' It is important to adhere to this prespecified order to enable \code{neWeight} to create valid pointers to these different types of predictor variables.
+#' This requirement extends to the use of operators different than the \code{+} operator, such as the \code{:} and \code{*} operators (when e.g. adding interaction terms). 
+#' For instance, the formula specifications \code{M ~ X * C1 + C2}, \code{M ~ X + C1 + X:C1 + C2} and \code{Y ~ X + X:C1 + C1 + C2} will create identical pointers to the different types of variables,
+#' as the order of the unique predictor variables is identical in all three specifications. 
+#' 
+#' Furthermore, categorical exposures that are not coded as factors in the original dataset, should be specified as factors in the formula, 
+#' using the \code{\link[base]{factor}} function, e.g. \code{M ~ factor(X) + C1 + C2}. 
+#' Quadratic, cubic or other polynomial terms can be included as well, by making use of the \code{\link[base]{I}} function or by using the \code{\link[stats]{poly}} function.
+#' For instance, \code{M ~ X + I(X^2) + C1 + C2} and \code{M ~ poly(X, 2, raw = TRUE) + C1 + C2} are equivalent and result in identical pointers to the different types of variables.
+# We do not recommend the use of orthogonal polynomials (i.e. using the default argument specification \code{raw = FALSE} in \code{poly}).
+#' 
+#' The command \code{terms(object, "vartype")} (with \code{object} replaced by the name of the resulting expanded dataset) can be used to check whether valid pointers have been created.
+#'
 #' The type of mediator model can be defined by specifying an appropriate model-fitting function via the \code{FUN} argument (its default is \code{\link[stats]{glm}}).
 #' This method can only be used with model-fitting functions that require a \code{formula} argument.
 #'
@@ -267,17 +300,13 @@ neWeight.default <- function (object, formula, data, nRep = 5, xSampling = c("qu
 #' data(UPBdata)
 #' 
 #' ## example using glm
-#' weightData <- neWeight(negaffect ~ att + gender + educ + age, 
+#' weightData <- neWeight(negaff ~ att + gender + educ + age, 
 #'                        data = UPBdata, nRep = 2)
-#' weights <- attr(weightData, "weights")
-#' head(cbind(weightData, weights))
 #' 
 #' ## example using vglm (yielding identical results as with glm)
 #' library(VGAM)
-#' weightData2 <- neWeight(negaffect ~ att + gender + educ + age, 
+#' weightData2 <- neWeight(negaff ~ att + gender + educ + age, 
 #'                         family = gaussianff, data = UPBdata, nRep = 2, FUN = vglm)
-#' weights2 <- attr(weightData2, "weights")
-#' head(cbind(weightData2, weights2))
 #' @export
 neWeight.formula <- function (object, family, data, FUN = glm, nRep = 5, xSampling = c("quantiles", 
     "random"), xFit, percLim = c(0.05, 0.95), ...) 

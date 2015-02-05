@@ -3,7 +3,7 @@
 #' @description This function both expands the data along hypothetical exposure values and imputes nested counterfactual outcomes.
 #' @param object an object used to select a method.
 #' @param ... additional arguments.
-#' @return A data frame of class \code{c("data.frame", "expData", "impData"))}. See \code{\link{expData}} for its structure.
+#' @return A data frame of class \code{c("data.frame", "expData", "impData")}. See \code{\link{expData}} for its structure.
 #' @details Generic function that both expands the data along hypothetical exposure values (for each observation unit \emph{i}) and imputes nested counterfactual outcomes in this expanded dataset in a single run.
 #' Imputed counterfactual outcomes 
 #' 
@@ -35,7 +35,7 @@ neImpute <- function (object, ...)
 #' @param xFit an optional fitted object (preferably \code{glm}) for the conditional exposure distribution (see details).
 #' @param percLim a numerical vector of the form \code{c(lower, upper)} indicating the extreme percentiles to sample when using \code{"quantiles"} as sampling method to sample from the conditional exposure distribution (see details).
 #' @param ... additional arguments.
-#' @return A data frame of class \code{c("data.frame", "expData", "impData"))}. See \code{\link{expData}} for its structure.
+#' @return A data frame of class \code{c("data.frame", "expData", "impData")}. See \code{\link{expData}} for its structure.
 #' @details Imputed counterfactual outcomes are predictions from the imputation model that needs to be specified as a fitted object in the \code{object} argument.
 #'
 #' If the model-fitting function used to fit the imputation model does not require specification of a \code{formula} or \code{data} argument (when using e.g. \code{\link[SuperLearner]{SuperLearner}}),
@@ -49,6 +49,19 @@ neImpute <- function (object, ...)
 #: if one wishes to estimate path-specific effects wrt multiple mediators (including exposure-induced confounders) in the natural effect model (\code{joint = FALSE}), one has to make sure to enter the mediators in the appropriate chronological order.
 #'  \item baseline covariates \code{C}: All remaining predictor variables are automatically coded as baseline covariates.
 #' }
+#' 
+#' It is important to adhere to this prespecified order to enable \code{neImpute} to create valid pointers to these different types of predictor variables.
+#' This requirement extends to the use of operators different than the \code{+} operator, such as the \code{:} and \code{*} operators (when e.g. adding interaction terms). 
+#' For instance, the formula specifications \code{Y ~ X * M + C1 + C2}, \code{Y ~ X + M + X:M + C1 + C2} and \code{Y ~ X + X:M + M + C1 + C2} will create identical pointers to the different types of variables,
+#' as the order of the unique predictor variables is identical in all three specifications. 
+#' 
+#' Furthermore, categorical exposures that are not coded as factors in the original dataset, should be specified as factors in the formula, 
+#' using the \code{\link[base]{factor}} function, e.g. \code{Y ~ factor(X) + M + C1 + C2}. 
+#' Quadratic, cubic or other polynomial terms can be included as well, by making use of the \code{\link[base]{I}} function or by using the \code{\link[stats]{poly}} function.
+#' For instance, \code{Y ~ X + I(X^2) + M + C1 + C2} and \code{Y ~ poly(X, 2, raw = TRUE) + M + C1 + C2} are equivalent and result in identical pointers to the different types of variables.
+# We do not recommend the use of orthogonal polynomials (i.e. using the default argument specification \code{raw = FALSE} in \code{poly}).
+#' 
+#' The command \code{terms(object, "vartype")} (with \code{object} replaced by the name of the resulting expanded dataset) can be used to check whether valid pointers have been created.
 #'
 #' If multiple mediators are specified (\code{nMed > 1}), the natural indirect effect parameter in the natural effect model captures the joint mediated effect. That is, the effect of the exposure on the outcome via these mediators considered jointly. 
 #' The remaining effect of the exposure on the outcome (not mediated through the specified mediators) is then captured by the natural indirect effect parameter.
@@ -74,20 +87,20 @@ neImpute <- function (object, ...)
 #' data(UPBdata)
 #' 
 #' ## example using glm imputation model with binary exposure
-#' fit.glm <- glm(UPB ~ attbin + negaffect + gender + educ + age, 
+#' fit.glm <- glm(UPB ~ attbin + negaff + gender + educ + age, 
 #'                family = binomial, data = UPBdata)
 #' impData <- neImpute(fit.glm)
 #' head(impData)
 #' 
 #' ## example using glm imputation model with continuous exposure
-#' fit.glm <- glm(UPB ~ att + negaffect + gender + educ + age, 
+#' fit.glm <- glm(UPB ~ att + negaff + gender + educ + age, 
 #'                family = binomial, data = UPBdata)
 #' impData <- neImpute(fit.glm, nRep = 2)
 #' head(impData)
 #' 
 #' ## example using vglm (yielding identical results as with glm)
 #' library(VGAM)
-#' fit.vglm <- vglm(UPB ~ att + negaffect + gender + educ + age, 
+#' fit.vglm <- vglm(UPB ~ att + negaff + gender + educ + age, 
 #'                  family = binomialff, data = UPBdata)
 #' impData2 <- neImpute(fit.vglm, nRep = 2)
 #' head(impData2)
@@ -98,48 +111,52 @@ neImpute <- function (object, ...)
 #' SL.library <- c("SL.glm", "SL.glm.interaction", "SL.rpart",
 #'                 "SL.step", "SL.stepAIC", "SL.step.interaction",
 #'                 "SL.bayesglm", "SL.glmnet")
-#' pred <- c("att", "negaffect", "gender", "educ", "age")
+#' pred <- c("att", "negaff", "gender", "educ", "age")
 #' fit.SL <- SuperLearner(Y = UPBdata$UPB, X = subset(UPBdata, select = pred),
 #'                        SL.library = SL.library, family = binomial())
 #' impSL <- neImpute(fit.SL, 
-#'                   formula = UPB ~ att + negaffect + gender + educ + age, 
+#'                   formula = UPB ~ att + negaff + gender + educ + age, 
 #'                   data = UPBdata)
 #' head(impSL)}
 #' \dontshow{
-#' UPBdata$att2 <- ifelse(UPBdata$attbin == "H", 1, 0)
-#' impData <- neImpute(UPB ~ factor(att2) * negaffect + gender + educ + age, family = binomial, data = UPBdata)
+#' #library(VGAM) 
+#' #expData <- neImpute(UPB ~ factor(attbin) + negaff + gender + educ + age, family = binomialff, data = UPBdata, FUN = vglm)
+#' #neMod <- neModel(UPB ~ attbin0 + attbin1 + gender + educ + age, family = binomial, expData = expData, nBoot = 2)
+#' 
+# UPBdata$att2 <- ifelse(UPBdata$attbin == "H", 1, 0)
+#' UPBdata$att2 <- UPBdata$attbin
+#' impData <- neImpute(UPB ~ factor(att2) * negaff + gender + educ + age, family = binomial, data = UPBdata)
 #' impFit1 <- neModel(UPB ~ att20 * att21 + gender + educ + age, family = binomial, expData = impData, nBoot = 2)
 #' impFit2 <- neModel(UPB ~ factor(att20) * factor(att21) + gender + educ + age, family = binomial, expData = impData, nBoot = 2)
 #' summary(impFit1)
 #' summary(impFit2)
 #' 
-#' head(neImpute(UPB ~ att + negaffect + gender + educ + age, data = UPBdata, weights = rep(1, nrow(UPBdata))))
-#' library(VGAM)
-#' fit1 <- vglm(UPB ~ att + negaffect + gender + educ + age, family = binomialff, data = UPBdata)
+#' head(neImpute(UPB ~ att + negaff + gender + educ + age, data = UPBdata, weights = rep(1, nrow(UPBdata))))
+#' fit1 <- vglm(UPB ~ att + negaff + gender + educ + age, family = binomialff, data = UPBdata)
 #' head(neImpute(fit1))
-#' head(neImpute(UPB ~ att + negaffect + gender + educ + age, family = binomialff, data = UPBdata, FUN = vglm, weights = rep(1, nrow(UPBdata))))
-#' head(neImpute(UPB ~ att + negaffect + gender + educ + age, family = binomial, data = UPBdata, weights = rep(1, nrow(UPBdata))))
+#' head(neImpute(UPB ~ att + negaff + gender + educ + age, family = binomialff, data = UPBdata, FUN = vglm, weights = rep(1, nrow(UPBdata))))
+#' head(neImpute(UPB ~ att + negaff + gender + educ + age, family = binomial, data = UPBdata, weights = rep(1, nrow(UPBdata))))
 #' UPBdata$att <- factor(cut(UPBdata$att, 2), labels = c("low", "high"))
-#' fit2 <- glm(UPB ~ att * negaffect * gender * educ * age, family = binomial, data = UPBdata)
+#' fit2 <- glm(UPB ~ att * negaff * gender * educ * age, family = binomial, data = UPBdata)
 #' # head(neImpute(fit2, nMed = 3, joint = FALSE))
-#' # head(neImpute(UPB ~ att * negaffect * gender * educ * age, data = UPBdata, family = binomial, nMed = 3, joint = FALSE))
-#' head(neImpute(UPB ~ att + negaffect + gender + educ + age, data = UPBdata, family = binomial))
-#' head(neImpute(UPB ~ att + negaffect + gender + educ + age, data = UPBdata))
+#' # head(neImpute(UPB ~ att * negaff * gender * educ * age, data = UPBdata, family = binomial, nMed = 3, joint = FALSE))
+#' head(neImpute(UPB ~ att + negaff + gender + educ + age, data = UPBdata, family = binomial))
+#' head(neImpute(UPB ~ att + negaff + gender + educ + age, data = UPBdata))
 #'
 #' # # test with vglm!
 #' library(VGAM)
-#' impFit <- vglm(UPB ~ att + negaffect + gender + educ + age, family = binomialff, data = UPBdata)
+#' impFit <- vglm(UPB ~ att + negaff + gender + educ + age, family = binomialff, data = UPBdata)
 #' terms(impFit)
 #' # debug(neImpute)
 #' impData <- neImpute(impFit)
-#' impFit2 <- glm(UPB ~ att + negaffect + gender + educ + age, family = binomial, data = UPBdata)
+#' impFit2 <- glm(UPB ~ att + negaff + gender + educ + age, family = binomial, data = UPBdata)
 #' impData2 <- neImpute(impFit2)
 #' head(impData); head(impData2)
 #' # check!!
 #'
 #' # test with gam?
 #' library(gam)
-#' impFit4 <- gam(UPB ~ att + negaffect + gender + educ + age, family = binomial, data = UPBdata)
+#' impFit4 <- gam(UPB ~ att + negaff + gender + educ + age, family = binomial, data = UPBdata)
 #' impData4 <- neImpute(impFit4)
 #' head(impData2); head(impData4)
 #' # check!}
@@ -198,7 +215,7 @@ neImpute.default <- function (object, formula, data, nMed = 1, nRep = 5, xSampli
         attr <- attributes(expData)
         vartype <- attr(attr$terms, "vartype")
     }
-    expData[, vartype$X] <- expData[, vartype$Xexp[1]]
+    expData[, vartype$X] <- expData[, vartype$Xexp[1]]    
     if ("SuperLearner" %in% class(fit)) {
         newdata <- expData[, names(eval(fit$call$X))]
         type <- NULL
@@ -209,18 +226,22 @@ neImpute.default <- function (object, formula, data, nMed = 1, nRep = 5, xSampli
         type <- "response"
         ind <- seq.int(nrow(newdata))
     }
+    try(pred <- predict(fit, newdata = newdata, type = type)[ind], silent = TRUE)
+    checkExist <- exists("pred")
+    if (!checkExist) newdata[, attr(vartype, "xasis")] <- newdata[, vartype$Xexp[1]]  
     expData[, vartype$Y] <- predict(fit, newdata = newdata, type = type)[ind]
     expData <- expData[, -ncol(expData)]
     if (!isTRUE(args$skipExpand)) {
         attributes(expData) <- c(attributes(expData), list(model = fit, 
             call = match.call(), terms = neTerms(formula, nMed, 
-                joint)))
+                joint), weights = rep(1L, nrow(expData))))
         attr(attr(expData, "terms"), "vartype") <- vartype
         class(expData) <- c(class(expData), "expData", "impData")
     }
     else {
         attributes(expData) <- attr
         attr(expData, "model") <- fit
+        attr(expData, "weights") <- rep(1L, nrow(expData))
     }
     return(expData)
 }
@@ -233,7 +254,7 @@ neImpute.default <- function (object, formula, data, nMed = 1, nRep = 5, xSampli
 #' @param FUN function used to fit model specified in \code{formula}.
 #' @param ... additional arguments (passed to \code{FUN}).
 #' @inheritParams neImpute.default
-#' @return A data frame of class \code{c("data.frame", "expData", "impData"))}. See \code{\link{expData}} for its structure.
+#' @return A data frame of class \code{c("data.frame", "expData", "impData")}. See \code{\link{expData}} for its structure.
 #' @details Imputed counterfactual outcomes are predictions from the imputation model that is fitted internally by extracting information from the arguments \code{object}, \code{family}, \code{data}, \code{FUN} and \code{...}.
 #'
 #' For imputation model specification via the \code{object} argument, use a \code{\link[stats]{formula}} of the form 
@@ -246,6 +267,19 @@ neImpute.default <- function (object, formula, data, nMed = 1, nRep = 5, xSampli
 #'  \item mediator(s) \code{M}: The second predictor is coded as mediator. In case of multiple mediators (\code{nMed > 1}), then predictors \code{2:(nMed + 1)} are coded as mediators.
 #'  \item baseline covariates \code{C}: All remaining predictor variables are automatically coded as baseline covariates.
 #' }
+#'
+#' It is important to adhere to this prespecified order to enable \code{neImpute} to create valid pointers to these different types of predictor variables.
+#' This requirement extends to the use of operators different than the \code{+} operator, such as the \code{:} and \code{*} operators (when e.g. adding interaction terms). 
+#' For instance, the formula specifications \code{Y ~ X * M + C1 + C2}, \code{Y ~ X + M + X:M + C1 + C2} and \code{Y ~ X + X:M + M + C1 + C2} will create identical pointers to the different types of variables,
+#' as the order of the unique predictor variables is identical in all three specifications. 
+#' 
+#' Furthermore, categorical exposures that are not coded as factors in the original dataset, should be specified as factors in the formula, 
+#' using the \code{\link[base]{factor}} function, e.g. \code{Y ~ factor(X) + M + C1 + C2}. 
+#' Quadratic, cubic or other polynomial terms can be included as well, by making use of the \code{\link[base]{I}} function or by using the \code{\link[stats]{poly}} function.
+#' For instance, \code{Y ~ X + I(X^2) + M + C1 + C2} and \code{Y ~ poly(X, 2, raw = TRUE) + M + C1 + C2} are equivalent and result in identical pointers to the different types of variables.
+# We do not recommend the use of orthogonal polynomials (i.e. using the default argument specification \code{raw = FALSE} in \code{poly}).
+#' 
+#' The command \code{terms(object, "vartype")} (with \code{object} replaced by the name of the resulting expanded dataset) can be used to check whether valid pointers have been created.
 #'
 #' If multiple mediators are specified (\code{nMed > 1}), the natural indirect effect parameter in the natural effect model captures the joint mediated effect. That is, the effect of the exposure on the outcome via these mediators considered jointly. 
 #' The remaining effect of the exposure on the outcome (not mediated through the specified mediators) is then captured by the natural indirect effect parameter.
@@ -274,18 +308,18 @@ neImpute.default <- function (object, formula, data, nMed = 1, nRep = 5, xSampli
 #' data(UPBdata)
 #' 
 #' ## example using glm imputation model with binary exposure
-#' impData <- neImpute(UPB ~ attbin + negaffect + gender + educ + age, 
+#' impData <- neImpute(UPB ~ attbin + negaff + gender + educ + age, 
 #'                     family = binomial, data = UPBdata)
 #' head(impData)
 #' 
 #' ## example using glm imputation model with continuous exposure
-#' impData <- neImpute(UPB ~ att + negaffect + gender + educ + age, 
+#' impData <- neImpute(UPB ~ att + negaff + gender + educ + age, 
 #'                     family = binomial, data = UPBdata, nRep = 2)
 #' head(impData)
 #' 
 #' ## example using vglm (yielding identical results as with glm)
 #' library(VGAM)
-#' impData2 <- neImpute(UPB ~ att + negaffect + gender + educ + age, 
+#' impData2 <- neImpute(UPB ~ att + negaff + gender + educ + age, 
 #'                      family = binomialff, data = UPBdata, 
 #'                      nRep = 2, FUN = vglm)
 #' head(impData2)
