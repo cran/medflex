@@ -48,7 +48,7 @@ In total, five causal effect estimates are returned in this case.
 
 For continuous exposures, default exposure levels at which natural effect components are evaluated are \emph{x*} = 0 and \emph{x} = 1.
 For multicategorical exposures, default levels are the reference level of the factor that encodes the exposure variable and the level corresponding to its first dummy variable for \emph{x*} and \emph{x}, respectively.
-If one wishes to evaluate natural effect components at different reference levels (e.g. if the natural effect model includes mediated interaction, quadratic or polynomial terms for the exposure; see examples),
+If one wishes to evaluate natural effect components at different reference levels (e.g. if the natural effect model includes mediated interaction, quadratic or higher-order polynomial terms for the exposure; see examples),
 these can be specified as a vector of the form \code{c(x*,x)} via the \code{xRef} argument.
 
 If applicable, covariate levels at which natural effect components are evaluated can also be specified. This is particularly useful for natural effect models encoding effect modification by baseline covariates (e.g. moderated mediation).

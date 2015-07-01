@@ -23,7 +23,7 @@
 #' 
 #' For continuous exposures, default exposure levels at which natural effect components are evaluated are \emph{x*} = 0 and \emph{x} = 1.
 #' For multicategorical exposures, default levels are the reference level of the factor that encodes the exposure variable and the level corresponding to its first dummy variable for \emph{x*} and \emph{x}, respectively.  
-#' If one wishes to evaluate natural effect components at different reference levels (e.g. if the natural effect model includes mediated interaction, quadratic or polynomial terms for the exposure; see examples), 
+#' If one wishes to evaluate natural effect components at different reference levels (e.g. if the natural effect model includes mediated interaction, quadratic or higher-order polynomial terms for the exposure; see examples), 
 #' these can be specified as a vector of the form \code{c(x*,x)} via the \code{xRef} argument.
 #' 
 #' If applicable, covariate levels at which natural effect components are evaluated can also be specified. This is particularly useful for natural effect models encoding effect modification by baseline covariates (e.g. moderated mediation).
@@ -261,6 +261,15 @@ neEffdecomp.neModel <- function (model, xRef, covLev, ...)
       if (xFact) x <- factor(x, levels = xRefCheck)
       dat1 <- if (nrow(covDat)) data.frame(1, x[1], x[2], covDat) else data.frame(1, x[1], x[2])
       names(dat1) <- all.vars(formula)
+      # replace factor() terms in formula by their original names 
+      # (because already treated as factor in neEffdecomp, 
+      # and otherwise non-used levels will be discarded when applying factor() to variable already coded as factor)
+      oldVars <- grep("factor\\(", dimnames(attr(terms(formula), "factors"))[[1]], value = TRUE)
+      if (length(oldVars)) {
+        newVars <- names(which(sapply(all.vars(formula), grep, oldVars)==TRUE))
+        tmp <- mgsub(oldVars, newVars, deparse(formula[[3]]), fixed = TRUE)
+        formula[[3]] <- as.call(parse(text = tmp))[[1]]
+      } #
       modmat1 <- model.matrix(formula, data = dat1)
       dat2 <- if (nrow(covDat)) data.frame(1, x[3], x[4], covDat) else data.frame(1, x[3], x[4])
       names(dat2) <- all.vars(formula)
@@ -327,6 +336,8 @@ neEffdecomp.neModel <- function (model, xRef, covLev, ...)
     }
     K2 <- t(data.frame(lapply(list, calcContr, form, covDat)))
     K2 <- unique(K2)
+    # again use factor() term names
+    colnames(K2) <- names(coef(model)) #
     rownames <- if (nrow(K2) == 3) {
       c("natural direct effect", "natural indirect effect", "total effect")
     } else {

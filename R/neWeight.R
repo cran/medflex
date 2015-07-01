@@ -49,7 +49,7 @@ neWeight <- function (object, ...)
 #' 
 #' Furthermore, categorical exposures that are not coded as factors in the original dataset, should be specified as factors in the formula, 
 #' using the \code{\link[base]{factor}} function, e.g. \code{M ~ factor(X) + C1 + C2}. 
-#' Quadratic, cubic or other polynomial terms can be included as well, by making use of the \code{\link[base]{I}} function or by using the \code{\link[stats]{poly}} function.
+#' Quadratic or higher-order polynomial terms can be included as well, by making use of the \code{\link[base]{I}} function or by using the \code{\link[stats]{poly}} function.
 #' For instance, \code{M ~ X + I(X^2) + C1 + C2} and \code{M ~ poly(X, 2, raw = TRUE) + C1 + C2} are equivalent and result in identical pointers to the different types of variables.
 # We do not recommend the use of orthogonal polynomials (i.e. using the default argument specification \code{raw = FALSE} in \code{poly}).
 #' 
@@ -153,6 +153,7 @@ neWeight.default <- function (object, formula, data, nRep = 5, xSampling = c("qu
     "random"), xFit, percLim = c(0.05, 0.95), ...) 
 {
     args <- as.list(match.call())[-1L]
+    if (!is.null(args$nMed) && args$nMed != 1) warning("The joint mediation approach is only available for the imputation-based approach! nMed = 1 was specified instead.")
     nMed <- args$nMed <- 1
     fit <- object
     args$data <- if (missing(data)) {
@@ -165,11 +166,13 @@ neWeight.default <- function (object, formula, data, nRep = 5, xSampling = c("qu
         class(formula) <- c("Mformula", "formula")
         vartype <- args$vartype <- attr(neTerms(formula, Y = NA, 
             nMed = nMed, joint = joint), "vartype")
-        xFact <- try(is.factor(model.frame(formula, eval(args$data))[, 
-            attr(vartype, "xasis")]), silent = TRUE)
-        if (!is.logical(xFact)) 
-            xFact <- is.factor(model.frame(fit)[, attr(vartype, 
-                "xasis")])
+        xFact <- if ("SuperLearner" %in% class(fit)) {
+            is.factor(model.frame(formula, eval(args$data))[, attr(vartype, "xasis")])
+        } else if (any(c("vglm", "vgam") %in% class(fit))) {
+            is.factor(VGAM::model.frame(fit)[, attr(vartype, "xasis")])
+        } else {
+            is.factor(model.frame(fit)[, attr(vartype, "xasis")])
+        }
         if (xFact) {
             dontapply <- c("nRep", "xSampling", "xFit", "percLim")
             ind <- !sapply(args[dontapply], is.null)
@@ -206,9 +209,6 @@ neWeight.default <- function (object, formula, data, nRep = 5, xSampling = c("qu
         attr <- attributes(expData)
         vartype <- attr(attr$terms, "vartype")
     }
-#     family <- if (is.null(extrCall(fit)$family)) 
-#         formals(eval(extrCall(fit)[[1]]))$family #
-#     else extrCall(fit)$family
     family <- if(inherits(fit, "vglm")) fit@family@vfamily[1] else fit$family$family
     family <- c("gaussian", "binomial", "poisson", "multinomial")[mapply(function(x, 
         y) grepl(y, x), as.character(family), c("gaussian", "binomial", 
@@ -270,7 +270,7 @@ neWeight.default <- function (object, formula, data, nRep = 5, xSampling = c("qu
 #' 
 #' Furthermore, categorical exposures that are not coded as factors in the original dataset, should be specified as factors in the formula, 
 #' using the \code{\link[base]{factor}} function, e.g. \code{M ~ factor(X) + C1 + C2}. 
-#' Quadratic, cubic or other polynomial terms can be included as well, by making use of the \code{\link[base]{I}} function or by using the \code{\link[stats]{poly}} function.
+#' Quadratic or higher-order polynomial terms can be included as well, by making use of the \code{\link[base]{I}} function or by using the \code{\link[stats]{poly}} function.
 #' For instance, \code{M ~ X + I(X^2) + C1 + C2} and \code{M ~ poly(X, 2, raw = TRUE) + C1 + C2} are equivalent and result in identical pointers to the different types of variables.
 # We do not recommend the use of orthogonal polynomials (i.e. using the default argument specification \code{raw = FALSE} in \code{poly}).
 #' 
@@ -313,15 +313,14 @@ neWeight.formula <- function (object, family, data, FUN = glm, nRep = 5, xSampli
 {
     args <- as.list(match.call())[-1L]
     formula <- object
-    nMed <- 1
-    joint <- TRUE
+    # joint <- TRUE
     if (missing(family)) 
         family <- formals(FUN)$family
-    args$object <- do.call(FUN, eval(list(formula = formula, 
-        family = family, data = data, ...)))
-    call <- substitute(list(formula = formula, family = family, 
-        data = data, ...))
+    argsFUN <- list(formula = formula, family = family, data = data, ...)
+    args$object <- do.call(FUN, eval(argsFUN[!names(argsFUN) %in% "nMed"]))  
+    call <- substitute(list(formula = formula, family = family, data = data, ...))
     call[[1]] <- substitute(FUN)
+    call$nMed <- NULL
     if (isS4(args$object)) 
         args$object@call <- call
     else args$object$call <- call

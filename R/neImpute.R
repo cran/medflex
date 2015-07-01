@@ -57,7 +57,7 @@ neImpute <- function (object, ...)
 #' 
 #' Furthermore, categorical exposures that are not coded as factors in the original dataset, should be specified as factors in the formula, 
 #' using the \code{\link[base]{factor}} function, e.g. \code{Y ~ factor(X) + M + C1 + C2}. 
-#' Quadratic, cubic or other polynomial terms can be included as well, by making use of the \code{\link[base]{I}} function or by using the \code{\link[stats]{poly}} function.
+#' Quadratic or higher-order polynomial terms can be included as well, by making use of the \code{\link[base]{I}} function or by using the \code{\link[stats]{poly}} function.
 #' For instance, \code{Y ~ X + I(X^2) + M + C1 + C2} and \code{Y ~ poly(X, 2, raw = TRUE) + M + C1 + C2} are equivalent and result in identical pointers to the different types of variables.
 # We do not recommend the use of orthogonal polynomials (i.e. using the default argument specification \code{raw = FALSE} in \code{poly}).
 #' 
@@ -176,8 +176,13 @@ neImpute.default <- function (object, formula, data, nMed = 1, nRep = 5, xSampli
         class(formula) <- c("Yformula", "formula")
         vartype <- args$vartype <- attr(neTerms(formula, nMed, 
             joint), "vartype")
-        xFact <- is.factor(model.frame(formula, eval(args$data))[, 
-            attr(vartype, "xasis")])
+        xFact <- if ("SuperLearner" %in% class(fit)) {
+            is.factor(model.frame(formula, eval(args$data))[, attr(vartype, "xasis")])
+        } else if (any(c("vglm", "vgam") %in% class(fit))) {
+            is.factor(VGAM::model.frame(fit)[, attr(vartype, "xasis")])
+        } else {
+            is.factor(model.frame(fit)[, attr(vartype, "xasis")])
+        }
         if (xFact) {
             dontapply <- c("nRep", "xSampling", "xFit", "percLim")
             ind <- !sapply(args[dontapply], is.null)
@@ -275,7 +280,7 @@ neImpute.default <- function (object, formula, data, nMed = 1, nRep = 5, xSampli
 #' 
 #' Furthermore, categorical exposures that are not coded as factors in the original dataset, should be specified as factors in the formula, 
 #' using the \code{\link[base]{factor}} function, e.g. \code{Y ~ factor(X) + M + C1 + C2}. 
-#' Quadratic, cubic or other polynomial terms can be included as well, by making use of the \code{\link[base]{I}} function or by using the \code{\link[stats]{poly}} function.
+#' Quadratic or higher-order polynomial terms can be included as well, by making use of the \code{\link[base]{I}} function or by using the \code{\link[stats]{poly}} function.
 #' For instance, \code{Y ~ X + I(X^2) + M + C1 + C2} and \code{Y ~ poly(X, 2, raw = TRUE) + M + C1 + C2} are equivalent and result in identical pointers to the different types of variables.
 # We do not recommend the use of orthogonal polynomials (i.e. using the default argument specification \code{raw = FALSE} in \code{poly}).
 #' 

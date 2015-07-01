@@ -12,9 +12,10 @@ neModel(formula, family = gaussian, expData, xFit, se = c("bootstrap",
 \item{formula}{a \code{\link[stats]{formula}} object providing a symbolic description of the natural effect model.}
 
 \item{family}{a description of the error distribution and link
-    function to be used in the model. This can be a character string
-    naming a family function, a family function or the result of a call
-    to a family function.  (See \code{\link{family}} for details of
+    function to be used in the model.  For \code{glm} this can be a
+    character string naming a family function, a family function or the
+    result of a call to a family function.  For \code{glm.fit} only the
+    third option is supported.  (See \code{\link{family}} for details of
     family functions.)}
 
 \item{expData}{the expanded dataset (of class \code{"\link{expData}"}).}
@@ -54,7 +55,7 @@ an adequate model for the exposure (conditioning on a sufficient set of baseline
 In this case, such a model for the exposure distribution is needed to weight by the reciprocal of the probability (density) of the exposure (i.e. inverse probability weighting) in order to adjust for confounding.
 Just as for ratio-of-mediator probability weighting (see paragraph below), this kind of weighting is done internally.
 
-Quadratic, cubic or other polynomial terms can be included in the \code{formula} by making use of the \code{\link[base]{I}} function or by using the \code{\link[stats]{poly}} function.
+Quadratic or higher-order polynomial terms can be included in the \code{formula} by making use of the \code{\link[base]{I}} function or by using the \code{\link[stats]{poly}} function.
 However, we do not recommend the use of orthogonal polynomials (i.e. using the default argument specification \code{raw = FALSE} in \code{poly}), as these are not compatible with the \code{\link[medflex]{neEffdecomp}} function.
 
 In contrast to \code{\link[stats]{glm}}, the \code{expData} argument (rather than \code{data} argument) requires specification of a data frame that inherits from class \code{"\link{expData}"},
