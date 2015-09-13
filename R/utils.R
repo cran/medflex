@@ -2,6 +2,8 @@
 #' @import multcomp
 #' @import stats
 #' @import utils
+#' @importFrom car residualPlot
+#' @importFrom car residualPlots
 
 extrCall <- function (x) 
 {
@@ -13,11 +15,12 @@ extrData <- function (x)
     if (inherits(x, "SuperLearner")) {
         data <- cbind(eval(x$call$X), eval(x$call$Y))
         dimnames(data)[[2]][ncol(data)] <- as.character(x$call$Y[[3]])
-        return(data)
     }
     else {
-        return(eval(extrCall(x)$data))
+        data <- eval(extrCall(x)$data)
     }
+    if (!is.data.frame(data)) data <- as.data.frame(as.list(data))
+    return(data)
 }
 
 mgsub <- function (pattern, replacement, x, ...) 

@@ -1,7 +1,7 @@
 Package: medflex
 Title: Flexible Mediation Analysis Using Natural Effect Models
-Version: 0.5-1
-Date: 2015-07-01
+Version: 0.6-0
+Date: 2015-09-13
 Authors@R: c( person("Johan", "Steen", email = "johan.steen@gmail.com", role =
     c("aut", "cre")), person("Tom", "Loeys", email = "tom.loeys@ugent.be", role
     = "aut"), person("Beatrijs", "Moerkerke", email =
@@ -18,13 +18,14 @@ Depends: R (>= 3.1.2), multcomp (>= 1.3-6)
 License: GPL-2
 URL: https://github.com/jmpsteen/medflex
 LazyData: true
-Imports: boot (>= 1.3-8), Matrix (>= 1.1-4), graphics (>= 3.1.2),
-        sandwich (>= 2.3-2), stats (>= 3.1.2), utils (>= 3.1.2)
-Suggests: arm (>= 1.7-05), car (>= 2.0-21), gam (>= 1.09.1), glmnet (>=
-        1.9-8), rpart (>= 4.1-8), SuperLearner (>= 2.0-15), VGAM (>=
-        0.9-5)
+Imports: boot (>= 1.3-8), car (>= 2.0-21), Matrix (>= 1.1-4), graphics
+        (>= 3.1.2), sandwich (>= 2.3-2), stats (>= 3.1.2), utils (>=
+        3.1.2)
+Suggests: arm (>= 1.7-05), gam (>= 1.09.1), glmnet (>= 1.9-8), mice (>=
+        2.22), mitools (>= 2.3), rpart (>= 4.1-8), SuperLearner (>=
+        2.0-15), VGAM (>= 0.9-5)
 NeedsCompilation: no
-Packaged: 2015-07-01 14:05:46 UTC; johansteen
+Packaged: 2015-09-13 09:04:13 UTC; johansteen
 Author: Johan Steen [aut, cre],
   Tom Loeys [aut],
   Beatrijs Moerkerke [aut],
@@ -33,4 +34,4 @@ Author: Johan Steen [aut, cre],
   Theis Lange [ctb] (valuable suggestions)
 Maintainer: Johan Steen <johan.steen@gmail.com>
 Repository: CRAN
-Date/Publication: 2015-07-01 16:08:34
+Date/Publication: 2015-09-13 19:32:37

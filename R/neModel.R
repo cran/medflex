@@ -1,6 +1,43 @@
+#' Methods for expanded datasets
+#'
+#' @description Regression weights, residuals and residual plots for expanded datasets.
+#' 
+#' @param object an expanded dataset (of class \code{"\link{expData}"}).
+#' @param ... additional arguments.
+#' @details 
+#' \code{weights} extracts regression weights (to be used in the natural effect model) for each observation of an expanded dataset.
+#' 
+#' \code{residuals} extracts residuals from the working model which is stored as an attribute of the expanded dataset. These can be used to assess normality of the residuals of the mediator working model when using the weighting-based approach (see example).
+#' 
+#' \code{residualPlot} and \code{residualPlots} are convenience functions from the \pkg{car} package. These can be used to assess the adequacy of the working model.
+#'
+# The regression weights are a multiplication of (and hence reflect)
+# \enumerate{
+#  \item ratio-of-mediator probability (density) weights: only when the weighted-based approach is used and \code{object} hence inherits from class \code{"\link{weightData}"}
+#  \item survey weights
+# }
+#' @name expData-methods
+#' @seealso \code{\link{expData}}, \code{\link{neWeight}}, \code{\link[car]{residualPlot}}, \code{\link[car]{residualPlots}}, \code{\link{residuals}}, \code{\link{weights}}
+#' @examples
+#' data(UPBdata)
+#' 
+#' weightData <- neWeight(negaff ~ att + gender + educ + age, 
+#'                        data = UPBdata, nRep = 2)
+#' 
+#' ## extract regression weights for natural effect model
+#' head(weights(weightData)) 
+#' 
+#' ## assess normality
+#' qqnorm(residuals(weightData))
+#' 
+#' ## assess model adequacy
+#' library(car)
+#' residualPlots(weightData)
+NULL
+
 #' Methods for natural effect models
 #'
-#' @description Extractor functions, confidence intervals and statistical tests for natural effect models.
+#' @description Extractor functions, confidence intervals, residual plots and statistical tests for natural effect models.
 #' @param object a fitted natural effect model object.
 #' @param ... additional arguments.
 # (see \code{\link[boot]{boot.ci}} for \code{confint} or \code{\link[stats]{summary.glm}} for \code{summary}).
@@ -26,11 +63,13 @@
 #'  \item inverse probability of treatment (exposure) weights (only if \code{xFit} was specified in \code{\link{neModel}})
 #' }
 #'
+#' \code{residualPlot} and \code{residualPlots} are convenience functions from the \pkg{car} package. These can be used to assess model adequacy.
+#'
 #' @name neModel-methods
 #' @note For the bootstrap, \emph{z}-values in the summary table are calculated by dividing the parameter estimate by its corresponding bootstrap standard error. 
 #' Corresponding \emph{p}-values in the summary table are indicative, since the null distribution for each statistic is assumed to be approximately standard normal.
 #' Therefore, whenever possible, it is recommended to focus mainly on bootstrap confidence intervals for inference, rather than the provided \emph{p}-values.
-#' @seealso \code{\link{neModel}}, \code{\link{plot.neModel}}, \code{\link{weights}}
+#' @seealso \code{\link{neModel}}, \code{\link{plot.neModel}}, \code{\link[car]{residualPlot}}, \code{\link[car]{residualPlots}}, \code{\link{weights}}
 #' @examples
 #' data(UPBdata)
 #' 
@@ -58,6 +97,10 @@
 #' 
 #' ## summary table
 #' summary(neMod)
+#' 
+#' ## residual plots
+#' library(car)
+#' residualPlots(neMod)
 NULL
 
 #' Confidence interval plots for natural effect components
@@ -115,11 +158,11 @@ confint.neModelBoot <- function (object, parm, level = 0.95, type = "norm", ...)
 #' @export
 confint.neModel <- function (object, parm, level = 0.95, ...) 
 {
-  ci <- confint.default(object, parm, level, ...)
-  dimnames(ci)[[2]] <- paste0(100 * level, c("% LCL", "% UCL"))
-  attributes(ci) <- c(attributes(ci), list(level = level, coef = coef(object)[parm]))
-  class(ci) <- c("neModelCI", class(ci))
-  return(ci)
+    ci <- confint.default(object, parm, level, ...)
+    dimnames(ci)[[2]] <- paste0(100 * level, c("% LCL", "% UCL"))
+    attributes(ci) <- c(attributes(ci), list(level = level, coef = coef(object)[parm]))
+    class(ci) <- c("neModelCI", class(ci))
+    return(ci)
 }
 
 #' @export
@@ -284,7 +327,11 @@ neModel <- function (formula, family = gaussian, expData, xFit, se = c("bootstra
     nBoot = 1000, parallel = c("no", "multicore", "snow"), ncpus = getOption("boot.ncpus", 
         1L), progress = TRUE, ...) 
 {
-    args <- as.list(match.call())
+    args <- as.list(match.call()) 
+    if (missing(expData)) {
+      expData <- parent.frame(2)$envir
+      args$expData <- quote(expData)
+    }
     args[[1]] <- substitute(neModelEst)
     args <- c(args[[1]], args[names(args) %in% names(formals(neModelEst))])
     neModelFit <- eval(as.call(args))
@@ -307,19 +354,22 @@ neModel <- function (formula, family = gaussian, expData, xFit, se = c("bootstra
         counter <- 0
         progbar <- txtProgressBar(min = 0, max = nBoot, style = 3)
     }
-    if (sum(sapply(attr(terms(expData), "vartype")$M, grepl, 
-        labels(terms(neModelFit))))) 
+    m <- attr(terms(expData), "vartype")$M
+    mpattern <- mapply(glob2rx, c(paste0(m), paste0(m, ":*"), paste0("*:", m, ":*"), paste0("*:", m), paste0("*(", m, ")*"), paste0("*(", m, "^*")), trim.head = TRUE)
+    if (sum(sapply(mpattern, grepl, glob2rx(labels(terms(neModelFit))), fixed = TRUE)))
         stop("The original mediator variables should not be included in the natural effect model!")
     if (inherits(expData, "impData")) {
-        formulaImpData <- extrCall(attr(expData, "model"))$formula
-        if (is.null(formulaImpData)) 
-            formulaImpData <- attr(expData, "call")$formula
-        termsImpData <- mgsub(dimnames(attr(terms(expData), "factors"))[[1]], 
-            all.vars(formulaImpData), labels(terms(expData)), 
-            fixed = TRUE)
-        termsImpData <- mgsub(unlist(attr(terms(expData), "vartype")[c("X", 
-            "M")]), attr(terms(expData), "vartype")$Xexp, termsImpData, 
-            fixed = TRUE)
+        nMed <- length(attr(terms(expData), "vartype")$M)
+        xasis <- attr(attr(terms(expData), "vartype"), "xasis")
+        masis <- attr(attr(terms(expData), "vartype"), "masis")
+        xpattern <- mapply(glob2rx, c(paste0(xasis), paste0(xasis, ":*"), paste0("*:", xasis, ":*"), paste0("*:", xasis)), trim.head = TRUE)
+        mpattern <- mapply(glob2rx, c(paste0(masis), paste0(masis, ":*"), paste0("*:", masis, ":*"), paste0("*:", masis)), trim.head = TRUE)
+        X0 <- attr(terms(expData), "vartype")$Xexp[1]
+        X1 <- attr(terms(expData), "vartype")$Xexp[2]
+        pattern <- c(xpattern, mpattern)
+        termsImpData <- labels(terms(expData))
+        replacement <- c(X0, paste0(X0, ":"), paste0(":", X0, ":"), paste0(":", X0), rep(c(X1, paste0(X1, ":"), paste0(":", X1, ":"), paste0(":", X1)), each = nMed))
+        termsImpData <- unique(mgsub(pattern, replacement, termsImpData))
         termsNeModel <- mgsub(dimnames(attr(terms(neModelFit), 
             "factors"))[[1]], all.vars(neModelFit$formula), labels(terms(neModelFit)), 
             fixed = TRUE)
@@ -369,6 +419,28 @@ neModel <- function (formula, family = gaussian, expData, xFit, se = c("bootstra
              fit1 <- neModelFit
              fit2 <- attr(expData, "model")
              fit3 <- if (!missing(xFit)) xFit else NULL
+             
+             if (inherits(expData, "weightData") && !is.null(na.action(fit1))) {
+               fit1$data$wts <- vector(length = nrow(fit1$data))
+               fit1$data$wts[-na.action(fit1)] <- weights(fit1, "prior")
+               fit1$data[na.action(fit1), all.vars(fit1$formula)[1]] <- 0
+               fit1$call[[1]] <- quote(glm)
+               fit1$call[["expData"]] <- NULL
+               fit1$call[["data"]] <- quote(fit1$data)
+               fit1$call[["weights"]] <- quote(wts)
+               if (!is.null(fit1$call[["xFit"]])) fit1$call[["xFit"]] <- NULL
+               fit1 <- update(fit1)
+             }
+             
+             if (inherits(expData, "impData") && !is.null(na.action(fit2))) {
+               fit2$data$wts <- vector(length = nrow(fit2$data))
+               fit2$data$wts[-na.action(fit2)] <- weights(fit2, "prior")
+               fit2$data[na.action(fit2), all.vars(fit2$formula)[1]] <- 0
+               fit2$call[["data"]] <- quote(fit2$data)
+               fit2$call[["weights"]] <- quote(wts)
+               fit2 <- update(fit2)
+             }
+             
              fit <- list(fit1, fit2, fit3)
              rm(fit1, fit2, fit3)
              fit <- fit[!sapply(fit, is.null)]
@@ -386,7 +458,8 @@ neModel <- function (formula, family = gaussian, expData, xFit, se = c("bootstra
              
              ## ESTIMATING EQUATIONS        
              estEqList <- lapply(fit, sandwich::estfun)
-             estEqList[[1]] <- as.matrix(aggregate(estEqList[[1]], by = list(as.numeric(fit[[1]]$data$id)), FUN = mean)[, -1])
+             estEqList[[1]] <- aggregate(estEqList[[1]], by = list(as.numeric(expData$id)), FUN = mean)[, -1]
+             row.names(estEqList[[1]]) <- unique(expData$id)
              estEq <- as.matrix(data.frame(estEqList))
              rm(estEqList)
              dimnames(estEq)[[2]] <- dimnames
@@ -396,7 +469,7 @@ neModel <- function (formula, family = gaussian, expData, xFit, se = c("bootstra
              
              ## BREAD
              # diagonal
-             breadInv <- as.matrix(Matrix::bdiag(lapply(fit, function(x) solve(sandwich::bread(x)))))
+             breadInv <- as.matrix(Matrix::bdiag(lapply(fit, function(x) solve(sandwich::bread(x) * nrow(x$model) / sum(summary(x)$df[1:2])))))
              dimnames(breadInv) <- list(dimnames, dimnames)
              
              # off-diagonal        
@@ -422,13 +495,13 @@ neModel <- function (formula, family = gaussian, expData, xFit, se = c("bootstra
                deriv12b <- X12$modmat * fit[[2]]$family$mu.eta(predict(fit[[2]], newdat = X12$newdat)) * as.vector(attr(eval(derivFUN), "gradient"))
                
                deriv12 <- deriv12a - deriv12b
-               breadInv[ind[[1]], ind[[2]]] <- -t(sandwich::estfun(fit[[1]])) %*% deriv12 / nrow(fit[[1]]$data)
+               breadInv[ind[[1]], ind[[2]]] <- -t(sandwich::estfun(fit[[1]])) %*% deriv12 / nrow(deriv12)
              }
              else if (inherits(expData, "impData")) {
                X12 <- adaptx(expData, fit[[1]], obs = FALSE)
                deriv12 <- X12$modmat * fit[[2]]$family$mu.eta(predict(fit[[2]], newdat = X12$newdat))
                
-               breadInv[ind[[1]], ind[[2]]] <- -t(sandwich::estfun(fit[[1]]) / resid(fit[[1]], type = "response")) %*% deriv12 / nrow(fit[[1]]$data)
+               breadInv[ind[[1]], ind[[2]]] <- -t(sandwich::estfun(fit[[1]]) / resid(fit[[1]], type = "response")) %*% deriv12 / nrow(deriv12)
              }
              
              # deriv13
@@ -443,9 +516,9 @@ neModel <- function (formula, family = gaussian, expData, xFit, se = c("bootstra
                X <- X13$newdat[, attr(terms(expData), "vartype")$X]
                if (!is.numeric(X)) X <- as.numeric(X) - 1
                deriv13 <- - X13$modmat * fit[[3]]$family$mu.eta(predict(fit[[3]], newdat = X13$newdat)) * as.vector(attr(eval(derivFUN), "gradient"))
-               breadInv[ind[[1]], ind[[3]]] <- -t(sandwich::estfun(fit[[1]])) %*% deriv13 / nrow(fit[[1]]$data)
+               breadInv[ind[[1]], ind[[3]]] <- -t(sandwich::estfun(fit[[1]])) %*% deriv13 / nrow(deriv13)
              }
-             
+    
              bread <- solve(breadInv)
              vcov <- as.matrix((bread %*% meat %*% t(bread)) / nrow(estEq))
              
@@ -537,6 +610,47 @@ print.summary.neModel <- function (x, digits = max(3, getOption("digits") - 3), 
         P.values = TRUE)
 }
 
+#' @rdname expData-methods
+#' @export
+residuals.expData <- function(object, ...) 
+{
+    residuals(attr(object, "model"), ...)
+}
+
+#' @rdname expData-methods
+#' @export
+residualPlot.expData <- function(object, ...) 
+{
+    car::residualPlot(attr(object, "model"), ...)
+}
+
+#' @rdname expData-methods
+#' @export
+residualPlots.expData <- function(object, ...) 
+{
+    car::residualPlots(attr(object, "model"), ...)
+}
+
+#' @rdname neModel-methods
+#' @export
+residualPlot.neModel <- function(object, ...) 
+{
+    car::residualPlot(object$neModelFit, ...)
+}
+
+#' @rdname neModel-methods
+#' @export
+residualPlots.neModel <- function(object, ...) 
+{
+    object$neModelFit$call[[1]] <- quote(glm)
+    object$neModelFit$call[["data"]] <- object$neModelFit$call[["expData"]]
+    object$neModelFit$call[["expData"]] <- NULL
+    object$neModelFit$call[["weights"]] <- quote(weights(object$neModelFit, type = "prior"))
+    if (!is.null(object$neModelFit$call[["xFit"]])) object$neModelFit$call[["xFit"]] <- NULL
+    object$neModelFit <- update(object$neModelFit)
+    car::residualPlots(object$neModelFit, ...)
+}
+
 #' @rdname neModel-methods
 #' @method summary neModel
 #' @export
@@ -571,25 +685,7 @@ vcov.neModelBoot <- function (object, ...)
     return(covmat)
 }
 
-#' Extract regression weights from the expanded dataset
-#'
-#' @description This function extracts the regression weights (to be used in the natural effect model) for each observation of an expanded dataset.
-#' @param object an expanded dataset (of class \code{"\link{expData}"}).
-#' @param ... additional arguments.
-#' @return a vector of length \code{nrow(object)}, containing the regression weights for the expanded dataset specified in \code{object}.
-# @details 
-# The regression weights are a multiplication of (and hence reflect)
-# \enumerate{
-#  \item ratio-of-mediator probability (density) weights: only when the weighted-based approach is used and \code{object} hence inherits from class \code{"\link{weightData}"}
-#  \item survey weights
-# }
-#' @seealso \code{\link{coef}}, \code{\link{confint}}, \code{\link{expData}}, \code{\link{neWeight}}, \code{\link{summary}}, \code{\link{vcov}}, \code{\link{weights}}
-#' @examples
-#' data(UPBdata)
-#' 
-#' weightData <- neWeight(negaff ~ att + gender + educ + age, 
-#'                        data = UPBdata, nRep = 2)
-#' head(weights(weightData)) 
+#' @rdname expData-methods
 #' @export
 weights.expData <- function (object, ...)
 {

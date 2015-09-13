@@ -9,12 +9,12 @@
 #' Suffixes \code{0} and \code{1} are used for variables whose corresponding parameters in the final natural effect model index natural direct and indirect effects, respectively.
 #'
 #' This object also stores some additional attributes, which are used as input for \code{\link{neModel}}, such as
-#'   \item{\code{model}}{the fitted imputation model object}
+#'   \item{\code{model}}{the fitted working model object}
 #'   \item{\code{data}}{original dataset}
 #'   \item{\code{call}}{the matched call}
 #   \item{\code{terms}}{the \code{\link{neTerms}} object used}
 #'   \item{\code{terms}}{the \code{neTerms} (internal class) object used}
-#'   \item{\code{weigths}}{ratio-of-mediator probability weights (only stored if object inherits from class \code{weightData})}
+#'   \item{\code{weights}}{ratio-of-mediator probability weights (only stored if object inherits from class \code{weightData})}
 #' @note If the weighting-based approach (\code{\link{neWeight}}) is applied, the original outcome values are copied for the nested counterfactual outcomes
 #' and the object stores an additional attribute, \code{"weights"}, containing a vector with ratio-of-mediator probability weights.
 #'
@@ -28,6 +28,7 @@ NULL
 expandData <- function (x, data, nMed, ...) 
 {
     args <- eval(substitute(alist(x, data, ...)))
+    if (inherits(data, "environment")) data <- as.data.frame(as.list(data))
     args[[1]] <- if (!is.null(args$vartype) && grepl("factor", 
         attr(eval(args$vartype), "xasis"))) {
         quote(as.factor(data[, x]))
@@ -150,6 +151,8 @@ neTerms.Yformula <- function (x, nMed, ...)
             1))])
     attr(attr(terms, "vartype"), "xasis") <- dimnames(attr(terms, 
         "factors"))[[1]][rowSums(attr(terms, "factors")) > 0][1]
+    attr(attr(terms, "vartype"), "masis") <- dimnames(attr(terms, 
+        "factors"))[[1]][rowSums(attr(terms, "factors")) > 0][2:(nMed + 1)]
     class(terms) <- c("neTerms.object", class(terms))
     return(terms)
 }

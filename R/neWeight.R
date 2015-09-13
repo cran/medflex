@@ -14,6 +14,8 @@
 #' or internally (\code{\link{neWeight.formula}}).
 #' @seealso \code{\link{neWeight.default}}, \code{\link{neWeight.formula}}, \code{\link{expData}}
 #' @references
+#' Hong, G. (2010). Ratio of mediator probability weighting for estimating natural direct and indirect effects. In \emph{Proceedings of the American Statistical Association, Biometrics Section}, pp. 2401-2415. American Statistical Association, Alexandria, VA.
+#' 
 #' Lange, T., Vansteelandt, S., & Bekaert, M. (2012). A Simple Unified Approach for Estimating Natural Direct and Indirect Effects. \emph{American Journal of Epidemiology}, \bold{176}(3), 190-195.
 #' @export
 neWeight <- function (object, ...) 
@@ -312,10 +314,11 @@ neWeight.formula <- function (object, family, data, FUN = glm, nRep = 5, xSampli
     "random"), xFit, percLim = c(0.05, 0.95), ...) 
 {
     args <- as.list(match.call())[-1L]
+    if (missing(data)) 
+      data <- environment(object)
     formula <- object
-    # joint <- TRUE
     if (missing(family)) 
-        family <- formals(FUN)$family
+      family <- formals(FUN)$family
     argsFUN <- list(formula = formula, family = family, data = data, ...)
     args$object <- do.call(FUN, eval(argsFUN[!names(argsFUN) %in% "nMed"]))  
     call <- substitute(list(formula = formula, family = family, data = data, ...))
