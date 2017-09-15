@@ -1,3 +1,20 @@
+Changes in Version 0.6-4
+
+  o First byte-compiled version
+  o Correction of example in neImpute help files with binary exposure (should be explicitly coded as factor!)
+  o Issue with bootstrap and data.frame named 'data' solved (github issue #8)
+  o Issue with family specification for propensity score model solved (github issue #11)
+  o Issue with special terms of formula of vgam function solved (github issue #12)
+
+Changes in Version 0.6-3
+
+  o Added compatibility with magrittr's forward-pipe operator `%>%` 
+  o Issue with scoping solved (cf github issue #6)
+
+Changes in Version 0.6-2
+
+  o Error when running neEffdecomp on a neModel-object that represents a population-average natural effect model: fixed (cf github issue #7)
+
 Changes in Version 0.6-1
 
   o Added flexibility with formula argument (in order to mimick glm function's behavior) (cf github issue #2)

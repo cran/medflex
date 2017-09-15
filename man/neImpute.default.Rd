@@ -82,7 +82,7 @@ These default 'outer' quantiles can be changed by specifying the \code{percLim} 
 data(UPBdata)
 
 ## example using glm imputation model with binary exposure
-fit.glm <- glm(UPB ~ attbin + negaff + gender + educ + age, 
+fit.glm <- glm(UPB ~ factor(attbin) + negaff + gender + educ + age, 
                family = binomial, data = UPBdata)
 impData <- neImpute(fit.glm)
 head(impData)
@@ -100,6 +100,7 @@ fit.vglm <- vglm(UPB ~ att + negaff + gender + educ + age,
 impData2 <- neImpute(fit.vglm, nRep = 2)
 head(impData2)
 
+\dontrun{
 ## example using SuperLearner
 library(Matrix)
 library(SuperLearner)
@@ -113,6 +114,8 @@ impSL <- neImpute(fit.SL,
                   formula = UPB ~ att + negaff + gender + educ + age, 
                   data = UPBdata)
 head(impSL)
+}
+
 \dontshow{
 rm(list=ls())
 library(VGAM) 

@@ -1,5 +1,5 @@
 ### R code from vignette source 'medflex.Rnw'
-### Encoding: ASCII
+### Encoding: UTF-8
 
 ###################################################
 ### code chunk number 1: medflex.Rnw:207-212
