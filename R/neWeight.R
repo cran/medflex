@@ -80,18 +80,18 @@ neWeight <- function (object, ...)
 #' ## example using glm
 #' fit.glm <- glm(negaff ~ att + gender + educ + age, data = UPBdata)
 #' weightData <- neWeight(fit.glm, nRep = 2)
-#' 
-#' ## example using vglm (yielding identical results as with glm)
-#' library(VGAM)
-#' fit.vglm <- vglm(negaff ~ att + gender + educ + age, 
-#'                  family = gaussianff, data = UPBdata)
-#' weightData2 <- neWeight(fit.vglm, nRep = 2)
-#'
+# 
+# ## example using vglm (yielding identical results as with glm)
+# library(VGAM)
+# fit.vglm <- vglm(negaff ~ att + gender + educ + age, 
+#                  family = gaussianff, data = UPBdata)
+# weightData2 <- neWeight(fit.vglm, nRep = 2)
+#
 #' \dontshow{
 #' library(VGAM) 
-#' expData <- neWeight(negaff ~ factor(attbin) + gender + educ + age, family = gaussianff, data = UPBdata, FUN = vglm)
-#' neMod <- neModel(UPB ~ attbin0 + attbin1 + gender + educ + age, family = binomial, expData = expData, nBoot = 2)
-#'  
+# expData <- neWeight(negaff ~ factor(attbin) + gender + educ + age, family = gaussianff, data = UPBdata, FUN = vglm)
+# neMod <- neModel(UPB ~ attbin0 + attbin1 + gender + educ + age, family = binomial, expData = expData, nBoot = 2)
+#  
 #' fit1 <- glm(negaff ~ att + gender + educ + age, data = UPBdata)
 #' expData1 <- neWeight(fit1)
 #' w1 <- attr(expData1, "weights")
@@ -100,15 +100,15 @@ neWeight <- function (object, ...)
 #' head(expData1); head(expData1f)
 #' head(w1); head(w1f)
 #'
-#' # test vglm (vglm is also vgam class, but not other way around!)
-#' fit1b <- vgam(negaff ~ att + gender + educ + age, family = gaussianff, data = UPBdata)
-#' expData1b <- neWeight(fit1b)
-#' head(attr(expData1, "weights")); head(attr(expData1b, "weights"))
-#' fit1b <- vgam(negaff ~ s(att) + gender + educ + age, family = gaussianff, data = UPBdata)
-#' expData1b <- neWeight(fit1b)
-#' head(attr(expData1, "weights")); head(attr(expData1b, "weights"))
-#' expData1bf <- neWeight(negaff ~ s(att) + gender + educ + age, FUN = vgam, family = gaussianff, data = UPBdata)
-#' head(attr(expData1b, "weights")); head(attr(expData1bf, "weights"))
+# # test vglm (vglm is also vgam class, but not other way around!)
+# fit1b <- vgam(negaff ~ att + gender + educ + age, family = gaussianff, data = UPBdata)
+# expData1b <- neWeight(fit1b)
+# head(attr(expData1, "weights")); head(attr(expData1b, "weights"))
+# fit1b <- vgam(negaff ~ s(att) + gender + educ + age, family = gaussianff, data = UPBdata)
+# expData1b <- neWeight(fit1b)
+# head(attr(expData1, "weights")); head(attr(expData1b, "weights"))
+# expData1bf <- neWeight(negaff ~ s(att) + gender + educ + age, FUN = vgam, family = gaussianff, data = UPBdata)
+# head(attr(expData1b, "weights")); head(attr(expData1bf, "weights"))
 #' ##
 #'
 #' UPBdata$negaff2 <- cut(UPBdata$negaff, breaks = 2, labels = c("low", "high"))
@@ -201,7 +201,10 @@ neWeight.default <- function (object, formula, data, nRep = 5, xSampling = c("qu
             args$nRep <- substitute(nRep)
         if (missing(percLim)) 
             args$percLim <- percLim
-        args$data <- eval(args$data, environment(stats::formula(fit)))
+        args$data <- if (inherits(fit, "SuperLearner")) 
+          eval(args$data, environment(fit))
+        else
+          eval(args$data, environment(stats::formula(fit)))
         expData <- do.call("expandData", c(x = substitute(vartype$X), 
             args))
         nExp <- ifelse(joint, 1, nMed)
@@ -219,10 +222,18 @@ neWeight.default <- function (object, formula, data, nRep = 5, xSampling = c("qu
         attr <- attributes(expData)
         vartype <- attr(attr$terms, "vartype")
     }
-    wrapFUN <- if (inherits(fit, "vglm"))
+    wrapFUN <- if (inherits(fit, "SuperLearner")) 
+      function(x) x[, names(eval(fit$call$X))]
+    else if (inherits(fit, "vglm"))
       function(x) model.frame(stats::formula(fit)[-2], x)
     else 
       function(x) return(x)
+    type <- if (inherits(fit, "SuperLearner")) 
+      NULL
+    else "response"
+    ind <- if (inherits(fit, "SuperLearner"))
+      "pred"
+    else seq.int(nrow(expData))
     family <- if (inherits(fit, "vglm")) 
         fit@family@vfamily[1] 
     else fit$family$family
@@ -231,6 +242,8 @@ neWeight.default <- function (object, formula, data, nRep = 5, xSampling = c("qu
         "poisson", "multinomial"))]
     dispersion <- if (inherits(fit, "vglm")) 
         fit@misc$dispersion
+    else if (inherits(fit, "SuperLearner") & family == "binomial")
+        1
     else summary(fit)$dispersion
     predictFUN <- if (inherits(fit, "vglm")) 
       VGAM::predictvglm
@@ -238,12 +251,12 @@ neWeight.default <- function (object, formula, data, nRep = 5, xSampling = c("qu
       VGAM::predict.vgam
     else predict
     dfun <- switch(family, 
-         gaussian = function(x) dnorm(x, mean = predictFUN(fit, newdata = wrapFUN(expData), type = "response"), sd = sqrt(dispersion)), 
+         gaussian = function(x) dnorm(x, mean = unlist(predictFUN(fit, newdata = wrapFUN(expData), type = type)[ind]), sd = sqrt(dispersion)), 
          binomial = function(x) {if (is.factor(x)) x <- as.numeric(x) - 1
-                     return(dbinom(x, size = 1, prob = predictFUN(fit, newdata = wrapFUN(expData), type = "response")))}, 
-         poisson = function(x) dpois(x, lambda = predictFUN(fit, newdata = wrapFUN(expData), type = "response")),
-         multinomial = function(x) {pred <- predictFUN(fit, newdata = wrapFUN(expData), type = "response")
-                        return(sapply(1:nrow(expData), function(i) pred[i, as.character(x[i])]))})
+         return(dbinom(x, size = 1, prob = unlist(predictFUN(fit, newdata = wrapFUN(expData), type = type)[ind])))}, 
+         poisson = function(x) dpois(x, lambda = unlist(predictFUN(fit, newdata = wrapFUN(expData), type = type)[ind])),
+         multinomial = function(x) {pred <- unlist(predictFUN(fit, newdata = wrapFUN(expData), type = type)[ind])
+         return(sapply(1:nrow(expData), function(i) pred[i, as.character(x[i])]))})
     expData[, vartype$X] <- expData[, vartype$Xexp[2]]
     weightsNum <- dfun(expData[, vartype$M])
     expData[, vartype$X] <- expData[, vartype$Xexp[1]]
@@ -319,11 +332,11 @@ neWeight.default <- function (object, formula, data, nRep = 5, xSampling = c("qu
 #' ## example using glm
 #' weightData <- neWeight(negaff ~ att + gender + educ + age, 
 #'                        data = UPBdata, nRep = 2)
-#' 
-#' ## example using vglm (yielding identical results as with glm)
-#' library(VGAM)
-#' weightData2 <- neWeight(negaff ~ att + gender + educ + age, 
-#'                         family = gaussianff, data = UPBdata, nRep = 2, FUN = vglm)
+# 
+# ## example using vglm (yielding identical results as with glm)
+# library(VGAM)
+# weightData2 <- neWeight(negaff ~ att + gender + educ + age, 
+#                         family = gaussianff, data = UPBdata, nRep = 2, FUN = vglm)
 #' @export
 neWeight.formula <- function (object, family, data, FUN = glm, nRep = 5, xSampling = c("quantiles", 
     "random"), xFit, percLim = c(0.05, 0.95), ...) 
