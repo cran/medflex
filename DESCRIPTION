@@ -1,7 +1,7 @@
 Package: medflex
 Title: Flexible Mediation Analysis Using Natural Effect Models
-Version: 0.6-6
-Date: 2018-09-03
+Version: 0.6-7
+Date: 2020-08-02
 Authors@R: c( 
     person("Johan", "Steen", email = "johan.steen@gmail.com", role = c("aut", "cre")), 
     person("Tom", "Loeys", email = "tom.loeys@ugent.be", role = "aut"), 
@@ -25,7 +25,7 @@ Imports: boot (>= 1.3-8), car (>= 2.0-21), Matrix (>= 1.1-4), graphics
 Suggests: arm (>= 1.7-05), gam (>= 1.09.1), glmnet (>= 1.9-8), mice (>=
         2.22), mitools (>= 2.3), rpart (>= 4.1-8), SuperLearner (>=
         2.0-15), VGAM (>= 1.0-0)
-RoxygenNote: 6.1.0
+RoxygenNote: 7.1.0
 ByteCompile: yes
 NeedsCompilation: no
 Author: Johan Steen [aut, cre],
@@ -37,6 +37,6 @@ Author: Johan Steen [aut, cre],
   Joscha Legewie [ctb],
   Paul Fink [ctb]
 Maintainer: Johan Steen <johan.steen@gmail.com>
-Packaged: 2018-09-02 22:27:01 UTC; johansteen
+Packaged: 2020-08-03 06:56:14 UTC; johansteen
 Repository: CRAN
-Date/Publication: 2018-09-03 07:20:07 UTC
+Date/Publication: 2020-08-03 09:00:24 UTC

@@ -4,9 +4,18 @@
 \alias{neModel}
 \title{Fit a natural effect model}
 \usage{
-neModel(formula, family = gaussian, expData, xFit, se = c("bootstrap",
-  "robust"), nBoot = 1000, parallel = c("no", "multicore", "snow"),
-  ncpus = getOption("boot.ncpus", 1L), progress = TRUE, ...)
+neModel(
+  formula,
+  family = gaussian,
+  expData,
+  xFit,
+  se = c("bootstrap", "robust"),
+  nBoot = 1000,
+  parallel = c("no", "multicore", "snow"),
+  ncpus = getOption("boot.ncpus", 1L),
+  progress = TRUE,
+  ...
+)
 }
 \arguments{
 \item{formula}{a \code{\link[stats]{formula}} object providing a symbolic description of the natural effect model.}
@@ -15,7 +24,7 @@ neModel(formula, family = gaussian, expData, xFit, se = c("bootstrap",
     function to be used in the model.  For \code{glm} this can be a
     character string naming a family function, a family function or the
     result of a call to a family function.  For \code{glm.fit} only the
-    third option is supported.  (See \code{\link{family}} for details of
+    third option is supported.  (See \code{\link[stats]{family}} for details of
     family functions.)}
 
 \item{expData}{the expanded dataset (of class \code{"\link{expData}"}).}
